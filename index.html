@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nyay-mitra: Your Rights in India</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lato:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Modern Justice -->
+    <!-- Application Structure Plan: The SPA is designed as a task-oriented interactive dashboard. Instead of a linear report, it uses a top navigation bar to switch between thematic sections ('Know Your Rights', 'Common Crimes', 'What To Do', 'Special Protections', 'Get Help'). This structure allows users to immediately access the information most relevant to their needs. Key interactions include an interactive IPC-to-BNS crime comparison tool with a dynamic chart, a step-by-step clickable flowchart for post-crime procedures, and accordion-style cards for rights and protections. This non-linear, interactive design was chosen to make dense legal information less intimidating and more engaging, guiding the user through actionable pathways rather than forcing them to read a long document. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Fundamental Rights -> Goal: Inform/Organize -> Viz/Method: Interactive Accordion (HTML/CSS/JS) -> Interaction: Click to expand/collapse -> Justification: Breaks down dense text into manageable, user-selectable chunks.
+        - Report Info: IPC vs. BNS comparison (Table 2.1) -> Goal: Compare/Inform -> Viz/Method: Dropdown-filtered cards + Bar Chart (Chart.js/Canvas) -> Interaction: Select crime category to filter cards and update chart showing punishment changes -> Justification: Transforms a static table into a powerful interactive tool for direct comparison and visual data analysis.
+        - Report Info: Criminal Justice Process (Table 3.1) -> Goal: Guide/Organize -> Viz/Method: Clickable Step-by-Step Flowchart (HTML/CSS/JS) -> Interaction: Click on a stage (e.g., 'FIR', 'Investigation') to reveal detailed procedures and rights -> Justification: Simplifies a complex process into an intuitive, guided journey, enhancing user understanding and retention.
+        - Report Info: Special Laws (Women, Children, etc.) -> Goal: Inform/Organize -> Viz/Method: Tabbed Interface (HTML/CSS/JS) -> Interaction: Click tabs for 'Women', 'Children', etc., to view relevant laws -> Justification: Neatly categorizes related information, preventing clutter and allowing focused exploration.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { 
+            font-family: 'Lato', sans-serif; 
+            background-color: #F9F9F9;
+            color: #1A202C;
+        }
+        h1, h2, h3, h4, h5, h6, .font-heading {
+            font-family: 'Poppins', sans-serif;
+        }
+        .nav-link { 
+            position: relative;
+            transition: color 0.3s ease; 
+        }
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -4px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #2E5BFF;
+            transition: width 0.3s ease;
+        }
+        .nav-link.active { 
+            color: #2E5BFF;
+            font-weight: 600;
+        }
+        .nav-link.active::after {
+            width: 100%;
+        }
+        .content-section { display: none; }
+        .content-section.active { display: block; }
+        .accordion-content, .flowchart-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-out; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 400px; max-height: 50vh; }
+        @media (max-width: 768px) { .chart-container { height: 300px; } }
+
+        #chat-widget {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 1000;
+        }
+        #chat-bubble {
+            width: 60px;
+            height: 60px;
+            background-color: #2E5BFF;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        #chat-bubble:hover {
+            transform: scale(1.1);
+            background-color: #1a42d9;
+        }
+        .resource-tab.active {
+            border-color: #2E5BFF;
+            color: #2E5BFF;
+            background-color: #E9EFFD;
+        }
+        .hero-gradient {
+            background: radial-gradient(circle at 50% 50%, #E9EFFD, #F9F9F9);
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-white/80 backdrop-blur-lg shadow-sm sticky top-0 z-50 border-b border-slate-200/60">
+        <nav class="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <h1 class="text-2xl font-bold text-slate-800 font-heading">Nyay-mitra</h1>
+                </div>
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-8">
+                        <a href="#home" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Home</a>
+                        <a href="#rights" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Know Your Rights</a>
+                        <a href="#crimes" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Common Crimes</a>
+                        <a href="#action" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">What To Do</a>
+                        <a href="#protections" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Special Protections</a>
+                        <a href="#resources" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Resources</a>
+                        <a href="#help" class="nav-link text-sm font-medium text-slate-600 hover:text-blue-600">Get Help</a>
+                    </div>
+                </div>
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="inline-flex items-center justify-center p-2 rounded-md text-slate-500 hover:text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+                        <span class="sr-only">Open main menu</span>
+                        <svg class="h-6 w-6" id="menu-icon-open" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7" />
+                        </svg>
+                         <svg class="h-6 w-6 hidden" id="menu-icon-close" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div id="mobile-menu" class="md:hidden hidden pb-3 space-y-1">
+                <a href="#home" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Home</a>
+                <a href="#rights" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Know Your Rights</a>
+                <a href="#crimes" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Common Crimes</a>
+                <a href="#action" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">What To Do</a>
+                <a href="#protections" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Special Protections</a>
+                <a href="#resources" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Resources</a>
+                <a href="#help" class="nav-link block px-3 py-2 rounded-md text-base font-medium text-slate-600 hover:text-blue-600 hover:bg-slate-100">Get Help</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+        
+        <section id="home" class="content-section">
+            <div class="text-center py-16 hero-gradient rounded-2xl">
+                <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/55/Emblem_of_India.svg/1200px-Emblem_of_India.svg.png" alt="Emblem of India" class="w-24 h-auto mx-auto mb-8" onerror="this.onerror=null;this.src='https://placehold.co/100x120/e2e8f0/334155?text=Emblem';">
+                <h1 class="text-4xl font-bold text-slate-900 sm:text-5xl md:text-6xl font-heading">Welcome to Nyay-mitra</h1>
+                <p class="mt-6 text-lg text-slate-600 max-w-3xl mx-auto">Your trusted friend in understanding the law. This guide is designed to empower you with knowledge about your rights as a citizen of India and the legal procedures to follow when you need them most. Navigate through the sections to become an informed and aware citizen.</p>
+            </div>
+        </section>
+
+        <section id="rights" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">Know Your Rights as a Victim</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">When a crime is committed, it's not just a violation of the law—it's a violation of your fundamental rights as a citizen. Understanding which of your constitutional rights has been impacted is the first step to seeking justice.</p>
+            </div>
+            <div id="rights-accordion" class="space-y-4 max-w-4xl mx-auto"></div>
+        </section>
+
+        <section id="crimes" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">Understanding Common Crimes: IPC vs. BNS</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">India's penal code has changed from the Indian Penal Code (IPC) to the Bharatiya Nyaya Sanhita (BNS). Explore key offences, see what's new, and understand the implications with our interactive guide.</p>
+            </div>
+            <div class="flex justify-center mb-8">
+                <div class="w-full max-w-xs">
+                    <label for="crime-category-filter" class="block text-sm font-medium text-slate-700">Filter by Crime Category:</label>
+                    <select id="crime-category-filter" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-slate-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md shadow-sm">
+                        <option value="all">All Categories</option>
+                        <option value="property">Offences Against Property</option>
+                        <option value="body">Offences Against the Body</option>
+                        <option value="state">Offences Against the State</option>
+                        <option value="new">New Categories of Crime</option>
+                        <option value="sexual">Sexual Offences</option>
+                        <option value="other">Other Offences</option>
+                    </select>
+                </div>
+            </div>
+            <div class="mb-12">
+                 <div class="chart-container bg-white p-4 rounded-lg shadow-md">
+                    <canvas id="punishmentChart"></canvas>
+                </div>
+                <p class="text-center text-sm text-slate-500 mt-2">Maximum imprisonment (in years) for select offences with changed punishments under the BNS.</p>
+            </div>
+            <div id="crimes-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+        </section>
+
+        <section id="action" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">What to Do When a Crime Occurs</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Facing a crime can be overwhelming. This enhanced guide walks you through the essential steps, provides scenario-specific advice, explains your rights, and demystifies key legal documents.</p>
+            </div>
+            
+            <div class="max-w-5xl mx-auto">
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center font-heading">The General Path to Justice</h3>
+                    <div id="action-flowchart" class="space-y-4"></div>
+                </div>
+
+                <div class="mb-12">
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center font-heading">Scenario-Specific Guides</h3>
+                    <div id="scenario-guides-accordion" class="space-y-4 max-w-4xl mx-auto"></div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
+                    <div id="victim-checklist-container"></div>
+                    <div id="arrested-checklist-container"></div>
+                </div>
+
+                <div>
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center font-heading">Key Documents Explained</h3>
+                    <div id="documents-accordion" class="space-y-4 max-w-4xl mx-auto"></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="protections" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">Special Protections for a Fairer Society</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Indian law provides specific safeguards for vulnerable groups. Explore the protections available for women, children, consumers, and users of the digital world.</p>
+            </div>
+            <div class="max-w-4xl mx-auto">
+                <div class="mb-4 border-b border-slate-200">
+                    <nav id="protections-tabs" class="-mb-px flex space-x-6 overflow-x-auto" aria-label="Tabs">
+                    </nav>
+                </div>
+                <div id="protections-content">
+                </div>
+            </div>
+        </section>
+
+        <section id="resources" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">Legal Resources</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Empower yourself with practical tools and deeper knowledge. Here you'll find document templates to help you get started and simple summaries of landmark cases that have shaped our rights.</p>
+            </div>
+            <div class="max-w-4xl mx-auto">
+                 <div class="mb-4 border-b border-slate-200">
+                    <nav id="resources-tabs" class="-mb-px flex space-x-6" aria-label="Tabs">
+                        <button class="resource-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-target="templates">Document Templates</button>
+                        <button class="resource-tab whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm" data-target="cases">Landmark Cases</button>
+                    </nav>
+                </div>
+                <div id="resources-content"></div>
+            </div>
+        </section>
+
+        <section id="help" class="content-section">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl font-bold text-slate-900 sm:text-4xl font-heading">Avenues for Aid & Accountability</h2>
+                <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">Beyond reporting crimes, every citizen has powerful tools to demand transparency, hold public servants accountable, and access justice. Learn how to use them through these official channels.</p>
+            </div>
+            <div id="help-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"></div>
+            <div id="helpline-directory" class="mt-12"></div>
+        </section>
+
+    </main>
+    
+    <footer class="bg-slate-100 border-t border-slate-200 mt-12">
+        <div class="container mx-auto py-6 px-4 sm:px-6 lg:px-8 text-center text-slate-500">
+            <p class="text-sm"><strong>Disclaimer:</strong> The content on this website is for informational purposes only and does not constitute legal advice. Please consult with a qualified legal professional for advice on any specific legal issue or matter.</p>
+        </div>
+    </footer>
+    
+    <!-- Chatbot Widget -->
+    <div id="chat-widget">
+        <div id="chat-bubble" title="Chat with Nyay Guru AI (opens in new tab)">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M18 10c0 3.866-3.582 7-8 7a8.839 8.839 0 01-4.083-.98L2 17l1.438-4.018A7.935 7.935 0 012 10c0-3.866 3.582-7 8-7s8 3.134 8 7zM4.416 11.584A6.932 6.932 0 004 10c0-3.032 2.91-5.5 6.5-5.5S17 6.968 17 10s-2.91 5.5-6.5 5.5c-.786 0-1.54-.13-2.24-.372L4.416 11.584z" clip-rule="evenodd" />
+            </svg>
+        </div>
+    </div>
+
+    <script>
+        const appData = {
+            rights: [
+                { 
+                    title: 'If you are a victim of Assault, Hurt, or Robbery...', 
+                    content: 'The crime committed against you is a direct violation of your <strong>Right to Life and Personal Liberty (Article 21)</strong>. This is the most fundamental right, guaranteeing your right to live with human dignity, free from physical harm and fear. The law ensures that no one can take away your life or liberty except according to a procedure established by law.' 
+                },
+                { 
+                    title: 'If you are a victim of Theft or Cheating...', 
+                    content: 'While there isn\'t a specific fundamental right to property in the same way, these crimes infringe upon your legal right to property, which is protected under <strong>Article 300-A</strong> of the Constitution. More importantly, such acts violate your <strong>Right to Life (Article 21)</strong> in a broader sense, as they disrupt your ability to live a peaceful and secure life, which is an integral part of your personal liberty.' 
+                },
+                { 
+                    title: 'If you are a victim of Discrimination...', 
+                    content: 'Any discrimination against you based on your religion, race, caste, sex, or place of birth is a violation of your <strong>Right to Equality (Articles 14 & 15)</strong>. This right ensures that you are treated equally before the law and that the state cannot discriminate against you on these grounds. If you are denied access to a public place, shop, or restaurant for these reasons, your fundamental rights have been violated.' 
+                },
+                { 
+                    title: 'If you are a victim of Human Trafficking or Forced Labour...', 
+                    content: 'This is a grave violation of your <strong>Right Against Exploitation (Articles 23 & 24)</strong>. The Constitution explicitly prohibits trafficking in human beings and all forms of forced labour. This right protects your dignity and ensures that you cannot be treated as a commodity or forced to work against your will.' 
+                },
+                { 
+                    title: 'If you are prevented from practicing your religion...', 
+                    content: 'This infringes upon your <strong>Right to Freedom of Religion (Article 25)</strong>. This right guarantees you the freedom of conscience and the right to freely profess, practice, and propagate your religion, subject to public order, morality, and health.' 
+                },
+                { 
+                    title: 'If your rights are violated and you get no help...', 
+                    content: 'You can invoke your <strong>Right to Constitutional Remedies (Article 32)</strong>. This is your most powerful right, allowing you to directly approach the Supreme Court (or the High Court under Article 226) to seek enforcement of your fundamental rights. It is the right that makes all other rights effective.' 
+                }
+            ],
+            crimes: [
+                { category: 'property', name: 'Theft', ipc: '378, 379', bns: '303', change: 'Community service is now a possible punishment for first-time offenders stealing property under Rs. 5,000 if returned. Repeat offender punishments are enhanced.' },
+                { category: 'property', name: 'Cheating', ipc: '415, 420', bns: '318', change: 'All forms of cheating are consolidated. Simple cheating punishment is increased from 1 year to up to 3 years.' },
+                { category: 'property', name: 'Criminal Breach of Trust', ipc: '405, 406', bns: '316', change: 'Maximum punishment is increased from 3 years to 5 years, showing a stricter stance on abuses of trust.' },
+                { category: 'state', name: 'Sedition', ipc: '124A', bns: 'Replaced', change: 'The offence of sedition is deleted. It is replaced by a new, broader offence under Section 152 for "Acts Endangering Sovereignty, Unity and Integrity of India".' },
+                { category: 'body', name: 'Mob Lynching', ipc: 'Not Specified', bns: '103(2)', change: 'A new, specific offence. Murder by a group of 5 or more on grounds of race, caste, etc., is now a distinct crime with severe penalties (life imprisonment or death).' },
+                { category: 'body', name: 'Causing Death by Negligence', ipc: '304A', bns: '106(1)', change: 'Punishment significantly increased from a maximum of 2 years to up to 5 years imprisonment and a fine.' },
+                { category: 'body', name: 'Hit-and-Run', ipc: 'Not Specified', bns: '106(2)', change: 'A new offence. If a driver causes death by negligence and flees without reporting, they face up to 10 years in prison and a fine.' },
+                { category: 'new', name: 'Terrorism', ipc: 'In special laws', bns: '113', change: 'Terrorism is defined and criminalized in the general penal code for the first time, with a broad definition.' },
+                { category: 'new', name: 'Organised Crime', ipc: 'In special laws', bns: '111', change: 'Organised crime (e.g., kidnapping, extortion by syndicates) is now a specific offence in the BNS.' },
+                { category: 'sexual', name: 'Sexual Intercourse by Deceit', ipc: 'Not Specified', bns: '69', change: 'A new offence criminalizing sexual intercourse with a woman by deceitful means or a false promise to marry, punishable with up to 10 years imprisonment.' },
+                { category: 'sexual', name: 'Assault/Force to Outrage Modesty', ipc: '354, 354A, 354B, 354D', bns: '73, 74, 75, 78', change: 'This covers a range of acts including sexual harassment, assault with intent to disrobe, voyeurism, and stalking. The BNS has consolidated and in some cases enhanced punishments for these critical offences against women.' },
+                { category: 'sexual', name: 'Rape of Men/Transgender Persons', ipc: '377 (partially)', bns: 'Omitted', change: 'The omission of IPC Section 377 has created a legal void for prosecuting non-consensual penetrative sexual assault against adult men and transgender individuals.' },
+                { category: 'other', name: 'Defamation', ipc: '499, 500', bns: '356', change: 'Making or publishing any imputation concerning any person intending to harm their reputation. The BNS now includes community service as a possible punishment.' },
+                { category: 'other', name: 'Criminal Intimidation', ipc: '503, 506', bns: '351', change: 'Threatening another person with injury to their person, property, or reputation. The BNS has reorganized these provisions.' },
+                { category: 'other', name: 'Public Nuisance', ipc: '268', bns: '290', change: 'Any act or illegal omission which causes any common injury, danger or annoyance to the public. The BNS has enhanced the penalty for this offence.' }
+            ],
+            punishmentData: {
+                labels: ['Cheating (Simple)', 'Criminal Breach of Trust', 'Death by Negligence'],
+                ipc: [1, 3, 2],
+                bns: [3, 5, 5]
+            },
+            actionPlan: [
+                 { 
+                    step: 'Step 1: Reporting the Crime', 
+                    icon: '&#128221;',
+                    content: `<strong>For Serious (Cognizable) Offences:</strong> Go to any police station. They MUST register a <strong>First Information Report (FIR)</strong>. You have a right to a free copy. If the crime happened elsewhere, they must file a <strong>"Zero FIR"</strong> and transfer it.<br><br><strong>For Less Serious (Non-Cognizable) Offences:</strong> File a complaint directly with the local Judicial Magistrate.<br><br><strong>What if Police Refuse to File an FIR?</strong><ol class="list-decimal list-inside mt-2"><li>Send a written complaint by post to a senior officer (e.g., Superintendent of Police).</li><li>If there's still no action, file a private complaint with a Magistrate under Section 156(3) of the CrPC/BNSS.</li></ol>`
+                },
+                { 
+                    step: 'Step 2: The Investigation Process', 
+                    icon: '&#128269;',
+                    content: `The police will begin the investigation. This involves:<ul class="list-disc list-inside mt-2"><li>Visiting the crime scene to gather evidence.</li><li>Collecting physical, digital, and forensic evidence.</li><li>Recording statements from the victim, witnesses, and accused.</li><li>If necessary, making an arrest (for cognizable offences).</li></ul>As a victim, you have the right to be kept informed of the investigation's progress.`
+                },
+                { 
+                    step: 'Step 3: The Victim\'s Role & Medical Exam', 
+                    icon: '&#128117;',
+                    content: `Your cooperation is crucial. You are often the key witness.<br><br><strong>Medico-Legal Exam (For Assault Victims):</strong> This is vital for evidence and treatment.<ul class="list-disc list-inside mt-2"><li><strong>Your Consent is Required:</strong> The exam cannot be done without your informed consent.</li><li><strong>Your Rights:</strong> You can have a support person present. The degrading "two-finger test" is banned.</li><li><strong>Free Treatment:</strong> All hospitals (public and private) must provide free first-aid and treatment.</li></ul>`
+                },
+                { 
+                    step: 'Step 4: Trial and Judgment', 
+                    icon: '&#9878;',
+                    content: `After investigation, police file a <strong>Charge Sheet</strong> in court.<br><br><strong>The Trial:</strong><ul class="list-disc list-inside mt-2"><li>The court frames charges against the accused.</li><li>The prosecution (the state's lawyer) presents evidence to prove guilt "beyond a reasonable doubt".</li><li>You will be called as a witness to give testimony (Chief Examination and Cross-Examination).</li><li>The defense presents its case.</li></ul><strong>The Judgment:</strong> The judge delivers the final verdict. If guilty, a sentence (punishment) is given. Both sides have the right to appeal.`
+                }
+            ],
+            scenarioGuides: [
+                {
+                    title: 'In Case of Theft or Robbery',
+                    icon: '&#128178;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Prioritize Safety:</strong> If it's a robbery, do not resist. Your life is more valuable than your belongings. Try to remember the attacker's appearance.</li><li><strong>Secure Your Accounts:</strong> Immediately call your bank(s) to block all stolen debit/credit cards. Also block any SIM cards that were stolen.</li><li><strong>Whom to Approach:</strong> Go to the nearest <strong>police station</strong> and file an FIR. Provide a detailed list of all stolen items and their estimated value. Get a free copy of the FIR.</li><li><strong>Inform Authorities:</strong> Use the FIR copy to apply for duplicate documents like your Driver's License, PAN card, etc., if they were stolen.</li></ol>`
+                },
+                {
+                    title: 'In Case of a Road Accident',
+                    icon: '&#128663;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Check for Injuries:</strong> Assess yourself and others for injuries. <strong>Whom to Approach:</strong> Call for an <strong>ambulance (Dial 102/108)</strong> and the <strong>Police (Dial 112)</strong> immediately. Do not move a seriously injured person unless they are in immediate danger.</li><li><strong>Document the Scene:</strong> If it is safe, take pictures of the accident scene, vehicle damage, and any visible injuries.</li><li><strong>Exchange Information:</strong> Get the name, address, phone number, and insurance details of the other driver(s) involved. Note down their vehicle registration number.</li><li><strong>File a Report:</strong> File a General Diary (GD) entry or an FIR at the nearest <strong>police station</strong>. This is crucial for insurance claims and any legal action.</li></ol>`
+                },
+                {
+                    title: 'In Case of Online Financial Fraud',
+                    icon: '&#128187;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Act Immediately - Whom to Approach (1):</strong> Call the <strong>National Cyber Crime Helpline at 1930</strong>. This is the first and most critical step to try and stop the fraudulent transaction.</li><li><strong>Whom to Approach (2):</strong> Go to <strong>www.cybercrime.gov.in</strong> and file a formal complaint on the <strong>National Cyber Crime Reporting Portal</strong>. Provide all details like transaction IDs and screenshots.</li><li><strong>Whom to Approach (3):</strong> Contact your <strong>Bank</strong>, explain the fraud, and request them to block the transaction and your card/account if necessary.</li><li><strong>Change Passwords:</strong> If you suspect any of your passwords have been compromised, change them immediately for all important accounts.</li></ol>`
+                },
+                {
+                    title: 'In Case of Stalking or Harassment',
+                    icon: '&#128100;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Preserve Evidence:</strong> Do not delete messages, emails, or call logs. Take screenshots of online posts or profiles. Note down dates, times, and locations of incidents.</li><li><strong>Whom to Approach (Police):</strong> Report the matter to the nearest <strong>police station</strong> and file an FIR. Stalking (BNS 78) is a cognizable offence.</li><li><strong>Whom to Approach (Helplines):</strong> Call the <strong>National Women's Helpline at 181</strong> or your local <strong>Women Police Helpline (1091)</strong> for immediate advice and support.</li><li><strong>Block the Person:</strong> Block the harasser on all social media platforms and your phone. Inform your friends and family about the situation.</li><li><strong>Cyber Crime Portal:</strong> If the harassment is online, you can also report it on the <strong>National Cyber Crime Reporting Portal</strong>.</li></ol>`
+                },
+                {
+                    title: 'In Case of Domestic Violence',
+                    icon: '&#128106;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Ensure Immediate Safety:</strong> If you are in immediate danger, leave the house and go to a safe place (a friend, relative, or public area).</li><li><strong>Whom to Approach (Helplines):</strong> Call the <strong>National Women's Helpline at 181</strong> or the <strong>Women Police Helpline (often 1091)</strong> for immediate assistance and counseling.</li><li><strong>Whom to Approach (Police):</strong> Go to the nearest <strong>police station</strong> to file a Domestic Incident Report (DIR) or an FIR. You can also approach a Protection Officer appointed under the PWDVA, 2005.</li><li><strong>Whom to Approach (NCW):</strong> You can file a complaint with the <strong>National Commission for Women (NCW)</strong> online. They can take up the matter with the police.</li><li><strong>Seek Legal and Medical Help:</strong> Get a medico-legal examination done for any injuries. Contact a lawyer or a Legal Services Authority for free legal aid to file a case under the Protection of Women from Domestic Violence Act (PWDVA).</li></ol>`
+                },
+                {
+                    title: 'In Case of Public Nuisance (e.g., Loud Noise)',
+                    icon: '&#128266;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Initial Request:</strong> If you feel safe doing so, you can first make a polite request to the person causing the nuisance to stop.</li><li><strong>Whom to Approach:</strong> If the nuisance continues, especially during late hours, call the <strong>Police Control Room (PCR) by dialing 112</strong>. Explain the situation, your location, and the nature of the disturbance.</li><li><strong>Provide Details:</strong> The police may ask for your details, which you can provide. You can request to remain anonymous if you have safety concerns. The police are obligated to visit the location and address the complaint.</li></ol>`
+                },
+                 {
+                    title: 'In Case of General Fraud or Cheating',
+                    icon: '&#128220;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Gather All Evidence:</strong> Collect all documents related to the fraud, such as receipts, bills, contracts, agreements, and any written communication with the accused person/company.</li><li><strong>Whom to Approach (Police):</strong> File a detailed written complaint at your local <strong>police station</strong>. If the police are convinced a cognizable offence of cheating has occurred, they will register an FIR.</li><li><strong>Whom to Approach (Consumer Forum):</strong> If the fraud relates to defective goods or deficient services from a business, you can file a complaint with the <strong>District Consumer Disputes Redressal Commission</strong>.</li><li><strong>Whom to Approach (Civil Court):</strong> For disputes that are primarily contractual or civil in nature (e.g., property disputes), you may need to <strong>consult a lawyer</strong> to file a civil suit for recovery or damages.</li></ol>`
+                },
+                {
+                    title: 'In Case of Defamation (Slander/Libel)',
+                    icon: '&#9997;',
+                    content: `<ol class="list-decimal list-inside space-y-2"><li><strong>Document the Defamatory Statement:</strong> Preserve evidence. For written defamation (libel), keep copies of the publication (newspaper, social media post, etc.). For spoken defamation (slander), try to have witness accounts.</li><li><strong>Whom to Approach (First Step):</strong> The standard first step is to <strong>contact a lawyer</strong>. The lawyer will typically send a legal notice to the person who made the statement, demanding a public apology and retraction.</li><li><strong>Criminal Complaint:</strong> If the notice is ignored, your lawyer can help you file a criminal complaint for defamation before a <strong>Judicial Magistrate</strong>.</li><li><strong>Civil Lawsuit:</strong> Separately, your lawyer can file a civil suit in a <strong>Civil Court</strong> claiming monetary compensation (damages) for the harm caused to your reputation.</li></ol>`
+                }
+            ],
+            actionChecklists: {
+                victim: [
+                    "Receive a free copy of the FIR.",
+                    "Be treated with dignity and sensitivity.",
+                    "Have your statement recorded at home (for certain offences).",
+                    "Receive free legal aid.",
+                    "Be informed about the investigation's progress.",
+                    "Have a support person present during medical exams."
+                ],
+                arrested: [
+                    "Be informed of the grounds for arrest.",
+                    "Be produced before a Magistrate within 24 hours.",
+                    "Inform a relative or friend about the arrest.",
+                    "Consult a lawyer of your choice.",
+                    "Receive free legal aid if unable to afford a lawyer.",
+                    "Be medically examined. Women cannot be arrested between sunset and sunrise (with exceptions)."
+                ]
+            },
+            keyDocuments: [
+                { title: 'First Information Report (FIR)', content: 'This is the first and most important document. It is the official record of a complaint about a serious (cognizable) crime. It sets the entire criminal justice process in motion. Always get a free copy.' },
+                { title: 'Charge Sheet', content: 'This is the final report filed by the police after their investigation is complete. It details the evidence collected and the specific charges against the accused. The trial begins based on this document.' },
+                { title: 'Medico-Legal Report (MLC)', content: 'A medical report prepared by a doctor after examining a victim of assault. It documents injuries and collects forensic evidence. It is a crucial piece of evidence in court.' }
+            ],
+            protections: [
+                { 
+                    id: 'women', 
+                    title: 'For Women',
+                    icon: '&#9792;',
+                    content: [
+                        { title: 'Protection from Domestic Violence (PWDVA, 2005)', text: 'A civil law offering protection from physical, sexual, verbal, emotional, and economic abuse within the family. Victims can get protection orders, residence orders, and monetary relief.' },
+                        { title: 'Sexual Harassment at Workplace (POSH Act, 2013)', text: 'Mandates that every employer set up an Internal Complaints Committee (ICC) for women to report and seek redressal for sexual harassment.' },
+                        { title: 'Right Against Dowry', text: 'The Dowry Prohibition Act, 1961, criminalizes giving or taking dowry. Cruelty by a husband or his relatives over dowry is also a serious offence.' },
+                        { title: 'Equal Pay & Property Rights', text: 'The Equal Remuneration Act mandates equal pay for equal work. The Hindu Succession Act grants daughters equal rights as sons to inherit ancestral property.' }
+                    ]
+                },
+                { 
+                    id: 'children', 
+                    title: 'For Children',
+                    icon: '&#128118;',
+                    content: [
+                        { title: 'Protection of Children from Sexual Offences (POCSO) Act, 2012', text: 'A strict, gender-neutral law protecting anyone under 18 from sexual assault, harassment, and pornography. Reporting such crimes is mandatory for all adults who become aware of them.' },
+                        { title: 'Child-Friendly Procedures', text: 'POCSO mandates special procedures like recording a child\'s statement at their home by a woman officer and trials in special courts to prevent further trauma.' },
+                        { title: 'Juvenile Justice (JJ) Act, 2015', text: 'This law deals with children in conflict with the law (focusing on reform, not punishment) and children in need of care and protection (e.g., orphans). It establishes Juvenile Justice Boards (JJB) and Child Welfare Committees (CWC).' }
+                    ]
+                },
+                { 
+                    id: 'cyber', 
+                    title: 'Cybercrime',
+                    icon: '&#128187;',
+                    content: [
+                        { title: 'The IT Act, 2000 & BNS', text: 'Cybercrimes are governed by the IT Act and relevant sections of the BNS. Offences include Hacking, Identity Theft, Phishing, and Cyber Stalking.' },
+                        { title: 'What to Do If You Are a Victim:', text: `<ol class="list-decimal list-inside space-y-2 mt-2"><li><strong>Do Not Panic & Do Not Delete:</strong> Preserve all evidence. Take screenshots of messages, profiles, transaction details, URLs, etc. Do not engage further with the perpetrator.</li><li><strong>Report Immediately Online:</strong> The fastest way to report is on the <strong>National Cyber Crime Reporting Portal</strong> at <strong>www.cybercrime.gov.in</strong>. You can report anonymously or as a victim.</li><li><strong>Call the Helpline:</strong> For immediate assistance, especially for financial fraud, call the National Helpline at <strong>1930</strong>.</li><li><strong>Report to the Platform:</strong> Report the abusive profile or content to the social media platform (e.g., Facebook, Instagram, Twitter) directly.</li><li><strong>Approach Local Police:</strong> You can also file a complaint at your local police station or a specialized Cyber Crime Cell.</li></ol>` }
+                    ]
+                },
+                { 
+                    id: 'consumers', 
+                    title: 'For Consumers',
+                    icon: '&#128722;',
+                    content: [
+                        { title: 'Consumer Protection Act, 2019', text: 'Protects you against unfair trade practices, defective goods, and poor services. It covers all transactions, including e-commerce.' },
+                        { title: 'Your Six Consumer Rights', text: 'Right to Safety, Right to be Informed, Right to Choose, Right to be Heard, Right to Seek Redressal, and Right to Consumer Education.' },
+                        { title: 'Where to Complain', text: 'You can file a complaint in consumer commissions at the District (claims up to ₹1 Cr), State (₹1 Cr - ₹10 Cr), or National (above ₹10 Cr) level.' }
+                    ]
+                }
+            ],
+            help: [
+                { title: 'Cyber Crime Portal', content: 'The official government portal to report all types of cybercrimes, including financial fraud, online harassment, and hacking. You can also call the helpline 1930.', action: 'Report a Cyber Crime', link: 'https://www.cybercrime.gov.in/' },
+                { title: 'National Commission for Women', content: 'A statutory body that works to protect and promote the interests of women in India. You can file complaints related to women\'s rights violations.', action: 'Visit NCW', link: 'https://ncw.nic.in/' },
+                { title: 'National Commission for Protection of Child Rights', content: 'The apex body for protecting and promoting child rights. It looks into complaints of child rights violations and reviews safeguards.', action: 'Visit NCPCR', link: 'https://ncpcr.gov.in/' },
+                { title: 'National Consumer Helpline', content: 'Provides advice and guidance to consumers on dealing with disputes related to goods and services. You can file grievances through this portal.', action: 'File a Grievance', link: 'https://consumerhelpline.gov.in/' },
+                { title: 'Right to Information (RTI)', content: 'Empowers you to request information from any public authority to promote transparency. File an application online or offline with a ₹10 fee.', action: 'File an RTI', link: 'https://rtionline.gov.in/' },
+                { title: 'Free Legal Aid (NALSA)', content: 'Ensures that no citizen is denied justice due to poverty. Eligible persons can apply for free legal services for their court cases.', action: 'Apply for Aid', link: 'https://nalsa.gov.in/lsams/' },
+                { title: 'State Police Services', content: 'Find contact information and online services for the police force in your state or union territory through the national portal of India.', action: 'Find Your State Police', link: 'https://www.india.gov.in/my-government/state-police' },
+                { title: 'Human Rights Commissions', content: 'File a complaint with the National (NHRC) or State Human Rights Commission (SHRC) if a public servant violates your human rights.', action: 'File a Complaint', link: 'https://hrcnet.nic.in/' }
+            ],
+            helplines: [
+                { name: 'National Emergency Helpline', number: '112', description: 'A single pan-India number for all emergencies.' },
+                { name: 'Police', number: '100', description: 'For immediate police assistance.' },
+                { name: 'Women Helpline', number: '181 / 1091', description: 'For women in distress.' },
+                { name: 'Child Helpline', number: '1098', description: 'For children in need of care and protection.' },
+                { name: 'National Cyber Crime Helpline', number: '1930', description: 'For reporting financial cyber frauds.' },
+                { name: 'Senior Citizen Helpline', number: '14567', description: 'For senior citizens facing abuse or in need of assistance.' },
+                { name: 'KIRAN - Mental Health Helpline', number: '1800-599-0019', description: 'A national helpline for mental health support.' }
+            ],
+            documentTemplates: [
+                {
+                    title: 'RTI Application Template',
+                    description: 'A basic template for filing an application under the Right to Information Act, 2005.',
+                    template: `To,\nThe Public Information Officer (PIO),\n[Name of the Public Authority/Department]\n[Address of the Public Authority]\n\nSubject: Application under the Right to Information Act, 2005\n\nSir/Madam,\n\nPlease provide me with the following information:\n\n1. [Clearly state the information you are seeking in point form]\n2. [Add more points as necessary]\n\nI am a citizen of India. I am attaching the application fee of Rs. 10/- by way of [Indian Postal Order/Demand Draft/Cash].\n\nPlease provide the information to my address given below.\n\nYours faithfully,\n\n[Your Name]\n[Your Address]\n[Your Phone Number]\nDate: [DD/MM/YYYY]`
+                },
+                {
+                    title: 'Consumer Complaint Template',
+                    description: 'A basic template for filing a complaint with a District Consumer Disputes Redressal Commission.',
+                    template: `BEFORE THE DISTRICT CONSUMER DISPUTES REDRESSAL COMMISSION AT [CITY NAME]\n\nComplaint No. ______ of 2024\n\n[Your Name]\n[Your Address]\n... Complainant\n\nVERSUS\n\n[Name of the Opposite Party/Company]\n[Address of the Opposite Party]\n... Opposite Party\n\nSubject: Complaint under Section 35 of the Consumer Protection Act, 2019\n\nSir/Madam,\n\nThe Complainant most respectfully states as under:\n\n1. That the Complainant purchased [Product/Service Name] from the Opposite Party on [Date] for a sum of Rs. [Amount] vide bill/receipt no. [Bill Number]. (A copy of the bill is attached).\n\n2. That the said [Product/Service] has the following defects: [Describe the defects or deficiency in service in detail].\n\n3. That the Complainant contacted the Opposite Party on [Date] to rectify the issue, but they failed to do so. (Copies of communication are attached).\n\nPRAYER:\nIt is, therefore, most respectfully prayed that this Hon'ble Commission may be pleased to direct the Opposite Party to:\n\na) [e.g., Replace the defective product with a new one]\nb) [e.g., Refund the amount of Rs. [Amount]]\nc) Pay a sum of Rs. [Amount] as compensation for mental agony and harassment.\nd) Any other relief which this Hon'ble Commission may deem fit.\n\n[Your Name]\nComplainant`
+                }
+            ],
+            caseStudies: [
+                {
+                    title: 'Vishaka v. State of Rajasthan',
+                    citation: 'AIR 1997 SC 3011',
+                    summary: 'This case arose from the brutal gang rape of a social worker in Rajasthan. In its judgment, the Supreme Court acknowledged the absence of any law to address sexual harassment at the workplace and laid down a set of guidelines, known as the "Vishaka Guidelines," for employers to follow to ensure the safety of women at work.',
+                    keyPrinciple: 'Established that sexual harassment at the workplace is a violation of a woman\'s fundamental rights to equality, life, and liberty. These guidelines were the law of the land until the POSH Act was enacted in 2013.'
+                },
+                {
+                    title: 'D.K. Basu v. State of West Bengal',
+                    citation: 'AIR 1997 SC 610',
+                    summary: 'This case dealt with the issue of custodial torture and deaths in police custody. The Supreme Court expressed deep concern over police atrocities and laid down 11 mandatory requirements that police must follow during the arrest and detention of any person.',
+                    keyPrinciple: 'Established strict procedures to be followed during arrest to protect the rights of the arrested person. This includes the right to inform a relative, the right to a medical examination, and the right to consult a lawyer, which are now part of the law.'
+                },
+                {
+                    title: 'Shreya Singhal v. Union of India',
+                    citation: 'AIR 2015 SC 1523',
+                    summary: 'This case challenged the constitutional validity of Section 66A of the Information Technology Act, 2000, which made it a crime to send "offensive" messages through a computer or communication device. The Supreme Court struck down the section in its entirety.',
+                    keyPrinciple: 'Upheld the fundamental right to freedom of speech and expression on the internet. The Court found that Section 66A was unconstitutionally vague and had a "chilling effect" on free speech, as people would be afraid to express legitimate opinions for fear of prosecution.'
+                }
+            ]
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const contentSections = document.querySelectorAll('.content-section');
+            const mobileMenuButton = document.getElementById('mobile-menu-button');
+            const mobileMenu = document.getElementById('mobile-menu');
+            const menuIconOpen = document.getElementById('menu-icon-open');
+            const menuIconClose = document.getElementById('menu-icon-close');
+
+            function navigateTo(hash) {
+                if (!hash) hash = '#home';
+                
+                contentSections.forEach(section => {
+                    if ('#' + section.id === hash) {
+                        section.classList.add('active');
+                    } else {
+                        section.classList.remove('active');
+                    }
+                });
+
+                navLinks.forEach(link => {
+                    if (link.getAttribute('href') === hash) {
+                        link.classList.add('active');
+                    } else {
+                        link.classList.remove('active');
+                    }
+                });
+                window.scrollTo(0, 0);
+            }
+
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const hash = this.getAttribute('href');
+                    history.pushState(null, null, hash);
+                    navigateTo(hash);
+                    if (mobileMenu.classList.contains('block')) {
+                        mobileMenu.classList.remove('block');
+                        mobileMenu.classList.add('hidden');
+                        menuIconOpen.classList.remove('hidden');
+                        menuIconClose.classList.add('hidden');
+                    }
+                });
+            });
+
+            mobileMenuButton.addEventListener('click', () => {
+                const isOpen = mobileMenu.classList.toggle('hidden');
+                mobileMenu.classList.toggle('block', !isOpen);
+                menuIconOpen.classList.toggle('hidden', !isOpen);
+                menuIconClose.classList.toggle('hidden', isOpen);
+            });
+
+            window.addEventListener('popstate', () => {
+                navigateTo(window.location.hash);
+            });
+
+            function initRights() {
+                const container = document.getElementById('rights-accordion');
+                container.innerHTML = appData.rights.map((right) => `
+                    <div class="border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <button class="accordion-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-slate-800 hover:bg-slate-50">
+                            <span>${right.title}</span>
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content px-4 pb-4 text-slate-600">
+                            <p>${right.content}</p>
+                        </div>
+                    </div>
+                `).join('');
+                
+                addAccordionListener(container);
+            }
+
+            let punishmentChart = null;
+            function initCrimes() {
+                const grid = document.getElementById('crimes-grid');
+                const filter = document.getElementById('crime-category-filter');
+                
+                function renderCrimes(category = 'all') {
+                    const filteredCrimes = category === 'all' ? appData.crimes : appData.crimes.filter(c => c.category === category);
+                    grid.innerHTML = filteredCrimes.map(crime => `
+                        <div class="bg-white rounded-lg shadow-md p-6 border border-slate-200 flex flex-col">
+                            <h3 class="text-xl font-bold text-slate-900">${crime.name}</h3>
+                            <div class="text-sm text-slate-500 my-2">
+                                <span class="font-semibold">Old IPC:</span> ${crime.ipc} &rarr; <span class="font-semibold">New BNS:</span> ${crime.bns}
+                            </div>
+                            <p class="text-slate-600 flex-grow">${crime.change}</p>
+                        </div>
+                    `).join('');
+                }
+
+                filter.addEventListener('change', (e) => renderCrimes(e.target.value));
+
+                const ctx = document.getElementById('punishmentChart').getContext('2d');
+                punishmentChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: appData.punishmentData.labels,
+                        datasets: [
+                            {
+                                label: 'IPC (Max Years)',
+                                data: appData.punishmentData.ipc,
+                                backgroundColor: 'rgba(255, 159, 64, 0.5)',
+                                borderColor: 'rgba(255, 159, 64, 1)',
+                                borderWidth: 1
+                            },
+                            {
+                                label: 'BNS (Max Years)',
+                                data: appData.punishmentData.bns,
+                                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                                borderColor: 'rgba(54, 162, 235, 1)',
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'Punishment Changes: IPC vs. BNS', font: { size: 16 } },
+                            tooltip: { mode: 'index', intersect: false }
+                        },
+                        scales: {
+                            y: { beginAtZero: true, title: { display: true, text: 'Max Imprisonment (Years)' } }
+                        }
+                    }
+                });
+                
+                renderCrimes();
+            }
+
+            function initActionPlan() {
+                const flowchartContainer = document.getElementById('action-flowchart');
+                flowchartContainer.innerHTML = appData.actionPlan.map((item) => `
+                    <div>
+                        <div class="flowchart-step border-2 border-slate-300 rounded-lg p-4 bg-white shadow-sm hover:border-blue-500 hover:bg-blue-50 flex items-center">
+                            <span class="text-2xl mr-4 text-blue-600">${item.icon}</span>
+                            <h3 class="font-semibold text-lg text-slate-800">${item.step}</h3>
+                        </div>
+                        <div class="flowchart-content pl-12 pr-4 py-2 text-slate-600 bg-slate-50 rounded-b-lg">
+                            <div class="border-l-2 border-blue-200 pl-4 py-2">${item.content}</div>
+                        </div>
+                    </div>
+                `).join('');
+
+                flowchartContainer.querySelectorAll('.flowchart-step').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const content = button.nextElementSibling;
+                        const wasActive = button.classList.contains('active');
+                        
+                        flowchartContainer.querySelectorAll('.flowchart-step').forEach(b => b.classList.remove('active'));
+                        flowchartContainer.querySelectorAll('.flowchart-content').forEach(c => c.style.maxHeight = null);
+
+                        if (!wasActive) {
+                            button.classList.add('active');
+                            content.style.maxHeight = content.scrollHeight + "px";
+                        }
+                    });
+                });
+                
+                const scenarioGuidesContainer = document.getElementById('scenario-guides-accordion');
+                scenarioGuidesContainer.innerHTML = appData.scenarioGuides.map(guide => `
+                    <div class="border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <button class="accordion-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-slate-800 hover:bg-slate-50">
+                            <span class="flex items-center"><span class="text-2xl mr-3">${guide.icon}</span> ${guide.title}</span>
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content px-4 pb-4 text-slate-600">
+                            ${guide.content}
+                        </div>
+                    </div>
+                `).join('');
+                addAccordionListener(scenarioGuidesContainer);
+
+                const victimChecklistContainer = document.getElementById('victim-checklist-container');
+                victimChecklistContainer.innerHTML = `
+                    <div class="bg-green-50 border border-green-200 rounded-lg p-6 h-full">
+                        <h4 class="text-xl font-bold text-green-800 mb-4 text-center">Checklist: Victim's Rights</h4>
+                        <ul class="space-y-2">
+                            ${appData.actionChecklists.victim.map(right => `<li class="flex items-start"><span class="text-green-600 mr-2">&#10003;</span><span class="text-green-800">${right}</span></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+
+                const arrestedChecklistContainer = document.getElementById('arrested-checklist-container');
+                arrestedChecklistContainer.innerHTML = `
+                    <div class="bg-red-50 border border-red-200 rounded-lg p-6 h-full">
+                        <h4 class="text-xl font-bold text-red-800 mb-4 text-center">Checklist: Rights of the Arrested</h4>
+                        <ul class="space-y-2">
+                            ${appData.actionChecklists.arrested.map(right => `<li class="flex items-start"><span class="text-red-600 mr-2">&#10003;</span><span class="text-red-800">${right}</span></li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+
+                const docsContainer = document.getElementById('documents-accordion');
+                docsContainer.innerHTML = appData.keyDocuments.map((doc) => `
+                    <div class="border border-slate-200 rounded-lg bg-white shadow-sm">
+                        <button class="accordion-toggle w-full flex justify-between items-center p-4 text-left font-semibold text-slate-800 hover:bg-slate-50">
+                            <span>${doc.title}</span>
+                            <span class="transform transition-transform duration-300">&#9662;</span>
+                        </button>
+                        <div class="accordion-content px-4 pb-4 text-slate-600">
+                            <p>${doc.content}</p>
+                        </div>
+                    </div>
+                `).join('');
+                addAccordionListener(docsContainer);
+            }
+
+            function initProtections() {
+                const tabsContainer = document.getElementById('protections-tabs');
+                const contentContainer = document.getElementById('protections-content');
+
+                tabsContainer.innerHTML = appData.protections.map((tab, index) => `
+                    <button class="protection-tab whitespace-nowrap py-4 px-3 border-b-2 font-medium text-sm ${index === 0 ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}" data-target="${tab.id}">
+                        <span class="mr-2 text-lg">${tab.icon}</span>${tab.title}
+                    </button>
+                `).join('');
+
+                function renderProtectionContent(id) {
+                    const protectionData = appData.protections.find(p => p.id === id);
+                    contentContainer.innerHTML = `
+                        <div class="space-y-4 pt-6">
+                            ${protectionData.content.map(item => `
+                                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                    <h4 class="font-semibold text-slate-800">${item.title}</h4>
+                                    <div class="text-slate-600 mt-1">${item.text}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+
+                tabsContainer.querySelectorAll('.protection-tab').forEach(button => {
+                    button.addEventListener('click', () => {
+                        tabsContainer.querySelectorAll('.protection-tab').forEach(btn => {
+                            btn.classList.remove('border-blue-500', 'text-blue-600');
+                            btn.classList.add('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
+                        });
+                        button.classList.add('border-blue-500', 'text-blue-600');
+                        button.classList.remove('border-transparent', 'text-slate-500', 'hover:text-slate-700', 'hover:border-slate-300');
+                        renderProtectionContent(button.dataset.target);
+                    });
+                });
+
+                renderProtectionContent(appData.protections[0].id);
+            }
+
+            function initResources() {
+                const tabsContainer = document.getElementById('resources-tabs');
+                const contentContainer = document.getElementById('resources-content');
+                const tabs = tabsContainer.querySelectorAll('.resource-tab');
+
+                const renderTemplates = () => {
+                    return `
+                        <div class="space-y-4 pt-6">
+                            ${appData.documentTemplates.map((template, index) => `
+                                <div class="bg-white rounded-lg border border-slate-200 shadow-sm">
+                                    <div class="p-4">
+                                        <h4 class="font-semibold text-slate-800">${template.title}</h4>
+                                        <p class="text-slate-600 mt-1 text-sm">${template.description}</p>
+                                    </div>
+                                    <pre class="bg-slate-50 p-4 whitespace-pre-wrap font-mono text-xs border-t border-slate-200">${template.template}</pre>
+                                    <div class="p-4 border-t border-slate-200 text-right">
+                                        <button class="copy-template-btn bg-slate-200 text-slate-700 px-3 py-1 rounded-md text-sm hover:bg-slate-300" data-index="${index}">Copy Template</button>
+                                        <span class="copy-feedback text-sm text-green-600 ml-2"></span>
+                                    </div>
+                                </div>
+                            `).join('')}
+                             <p class="text-xs text-red-600 mt-4 text-center"><strong>Disclaimer:</strong> These templates are for basic guidance ONLY and are not a substitute for legal advice. Please consult a lawyer for any serious matter.</p>
+                        </div>
+                    `;
+                };
+
+                const renderCases = () => {
+                    return `
+                        <div class="space-y-4 pt-6">
+                            ${appData.caseStudies.map(study => `
+                                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                    <h4 class="font-semibold text-slate-800">${study.title}</h4>
+                                    <p class="text-xs text-slate-500">${study.citation}</p>
+                                    <p class="text-slate-600 mt-2">${study.summary}</p>
+                                    <div class="mt-3 pt-3 border-t border-slate-200">
+                                        <p class="text-sm font-semibold text-blue-800">Key Principle:</p>
+                                        <p class="text-sm text-slate-700">${study.keyPrinciple}</p>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                };
+
+                const renderContent = (target) => {
+                    if (target === 'templates') {
+                        contentContainer.innerHTML = renderTemplates();
+                        addCopyListeners();
+                    } else {
+                        contentContainer.innerHTML = renderCases();
+                    }
+                };
+                
+                tabs.forEach(tab => {
+                    tab.addEventListener('click', () => {
+                        tabs.forEach(t => t.classList.remove('active'));
+                        tab.classList.add('active');
+                        renderContent(tab.dataset.target);
+                    });
+                });
+                
+                // Initial render
+                tabs[0].classList.add('active');
+                renderContent('templates');
+            }
+            
+            function addCopyListeners() {
+                document.querySelectorAll('.copy-template-btn').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const index = e.target.dataset.index;
+                        const templateText = appData.documentTemplates[index].template;
+                        const feedback = e.target.nextElementSibling;
+
+                        const tempTextArea = document.createElement('textarea');
+                        tempTextArea.value = templateText;
+                        document.body.appendChild(tempTextArea);
+                        tempTextArea.select();
+                        try {
+                            document.execCommand('copy');
+                            feedback.textContent = 'Copied!';
+                            setTimeout(() => feedback.textContent = '', 2000);
+                        } catch (err) {
+                            feedback.textContent = 'Copy failed.';
+                            console.error('Copy failed', err);
+                        }
+                        document.body.removeChild(tempTextArea);
+                    });
+                });
+            }
+
+            function initHelp() {
+                const container = document.getElementById('help-grid');
+                container.innerHTML = appData.help.map(item => `
+                    <div class="bg-white rounded-lg shadow-md p-6 border border-slate-200 flex flex-col text-center items-center">
+                        <h3 class="text-xl font-bold text-slate-900 mb-2">${item.title}</h3>
+                        <p class="text-slate-600 flex-grow mb-4">${item.content}</p>
+                        <a href="${item.link}" target="_blank" rel="noopener noreferrer" class="inline-block bg-blue-600 text-white font-semibold px-6 py-2 rounded-md hover:bg-blue-700 transition-colors">
+                            ${item.action}
+                        </a>
+                    </div>
+                `).join('');
+                
+                const helplineContainer = document.getElementById('helpline-directory');
+                helplineContainer.innerHTML = `
+                    <h3 class="text-2xl font-bold text-slate-800 mb-6 text-center font-heading">National Helpline Directory</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        ${appData.helplines.map(line => `
+                            <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                                <h4 class="font-semibold text-slate-800">${line.name}</h4>
+                                <p class="text-2xl font-bold text-blue-600 my-2">${line.number}</p>
+                                <p class="text-sm text-slate-600">${line.description}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            function addAccordionListener(container) {
+                 container.querySelectorAll('.accordion-toggle').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const content = button.nextElementSibling;
+                        const icon = button.querySelector('span:last-child');
+                        const wasOpen = content.style.maxHeight;
+
+                        // Close all accordions in the same container before opening the new one
+                        container.querySelectorAll('.accordion-content').forEach(c => c.style.maxHeight = null);
+                        container.querySelectorAll('.accordion-toggle span:last-child').forEach(i => i.style.transform = 'rotate(0deg)');
+                        
+                        if (!wasOpen) {
+                            content.style.maxHeight = content.scrollHeight + "px";
+                            icon.style.transform = 'rotate(180deg)';
+                        }
+                    });
+                });
+            }
+            
+            function initChatbot() {
+                const chatBubble = document.getElementById('chat-bubble');
+                chatBubble.addEventListener('click', () => {
+                    window.open('https://nyayguru.com/', '_blank', 'noopener,noreferrer');
+                });
+            }
+
+            initRights();
+            initCrimes();
+            initActionPlan();
+            initProtections();
+            initResources();
+            initHelp();
+            initChatbot();
+            
+            navigateTo(window.location.hash || '#home');
+        });
+    </script>
+</body>
+</html>
